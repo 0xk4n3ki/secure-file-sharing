@@ -99,3 +99,51 @@ func EnablePgCrypto(db *sql.DB) {
 		log.Fatalf("Error enabling pgcrypto extension: %v", err)
 	}
 }
+
+func CreateFileTable(db *sql.DB) {
+	query := `
+	CREATE TABLE IF NOT EXISTS files (
+		id SERIAL PRIMARY KEY,
+		filename TEXT NOT NULL,
+		filepath TEXT NOT NULL,
+		owner_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+		size BIGINT,
+		s3_key TEXT UNIQUE NOT NULL,
+		encrypted_dek BYTEA NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		file_id UUID DEFAULT gen_random_uuid()
+	);`
+
+	_, err := db.Exec(query)
+	if err != nil {
+		log.Fatalf("Error creating files table: %v", err)
+	}
+}
+
+func CreateFileAccessTable(db *sql.DB) {
+	query := `
+	CREATE TABLE IF NOT EXISTS file_access (
+		id SERIAL PRIMARY KEY,
+		file_id UUID REFERENCES files(file_id) ON DELETE CASCADE,
+		user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+		role TEXT CHECK (role IN('owner','viewer')) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		file_access_id UUID DEFAULT gen_random_uuid()
+	);`
+
+	_, err := db.Exec(query)
+	if err != nil {
+		log.Fatalf("Error creating file_access table: %v", err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_file_access_user_id ON file_access(user_id)`)
+	if err != nil {
+		log.Fatalf("Error creating index on user_id: %v", err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_file_access_file_id ON file_access(file_id)`)
+	if err != nil {
+		log.Fatalf("Error creating index on file_id: %v", err)
+	}
+}
