@@ -6,7 +6,6 @@ import (
 
 	"github.com/0xk4n3ki/secure-file-sharing/models"
 	"github.com/0xk4n3ki/secure-file-sharing/storage"
-	"github.com/google/uuid"
 )
 
 type fileService struct{}
@@ -19,7 +18,7 @@ func (s *fileService) Upload(userId, filename string, size int64, file multipart
 		return nil, err
 	}
 
-	s3Key := uuid.New().String() + "/" + finalFileName
+	s3Key := userId + "/" + finalFileName
 
 	err = storage.S3Service.Upload(file, s3Key)
 	if err != nil {
