@@ -14,15 +14,20 @@ type fileService struct{}
 var FileService = &fileService{}
 
 func (s *fileService) Upload(userId, filename string, size int64, file multipart.File) (*models.File, error) {
-	s3Key := uuid.New().String() + "/" + filename
+	finalFileName, err := storage.DBService.GetAvailableFileName(userId, filename)
+	if err != nil {
+		return nil, err
+	}
 
-	err := storage.S3Service.Upload(file, s3Key)
+	s3Key := uuid.New().String() + "/" + finalFileName
+
+	err = storage.S3Service.Upload(file, s3Key)
 	if err != nil {
 		return nil, err
 	}
 
 	f := &models.File{
-		Filename:   filename,
+		Filename:   finalFileName,
 		Size:       size,
 		OwnerID:    userId,
 		S3Key:      s3Key,

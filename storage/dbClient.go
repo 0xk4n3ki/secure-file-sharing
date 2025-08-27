@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/0xk4n3ki/secure-file-sharing/database"
 	"github.com/0xk4n3ki/secure-file-sharing/models"
@@ -30,4 +31,31 @@ func (d *dbService) InsertFile(f *models.File, userId string) error {
 	}
 
 	return nil
+}
+
+func (d *dbService) GetAvailableFileName(userId, filename string) (string, error) {
+	var count int
+	baseName := filename
+	extension := ""
+
+	if dot := strings.LastIndex(filename, "."); dot != -1 {
+		baseName = filename[:dot]
+		extension = filename[dot:]
+	}
+
+	newName := filename
+	for i := 1; ; i++ {
+		query := `SELECT COUNT(1) FROM files WHERE owner_id=$1 AND filename=$2`
+		err := database.PG_Client.QueryRow(query, userId, newName).Scan(&count)
+		if err != nil {
+			return "", fmt.Errorf("error checking filename conflict: %v", err)
+		}
+
+		if count == 0 {
+			break
+		}
+		newName = fmt.Sprintf("%s(%d)%s", baseName, i, extension)
+	}
+
+	return newName, nil
 }
