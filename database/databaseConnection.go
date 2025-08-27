@@ -76,15 +76,14 @@ func DBinstance() *sql.DB {
 func CreateUserTable(db *sql.DB) {
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY,
+		user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		first_name TEXT NOT NULL,
 		last_name TEXT NOT NULL,
 		email TEXT UNIQUE NOT NULL,
 		token TEXT,
 		refresh_token TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		user_id UUID DEFAULT gen_random_uuid()
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
 
 	_, err := db.Exec(query)
@@ -103,15 +102,13 @@ func EnablePgCrypto(db *sql.DB) {
 func CreateFileTable(db *sql.DB) {
 	query := `
 	CREATE TABLE IF NOT EXISTS files (
-		id SERIAL PRIMARY KEY,
+		file_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		filename TEXT NOT NULL,
 		owner_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
 		size BIGINT,
 		s3_key TEXT UNIQUE NOT NULL,
-		encrypted_dek BYTEA NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		file_id UUID DEFAULT gen_random_uuid()
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
 
 	_, err := db.Exec(query)
@@ -123,12 +120,11 @@ func CreateFileTable(db *sql.DB) {
 func CreateFileAccessTable(db *sql.DB) {
 	query := `
 	CREATE TABLE IF NOT EXISTS file_access (
-		id SERIAL PRIMARY KEY,
+		file_access_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		file_id UUID REFERENCES files(file_id) ON DELETE CASCADE,
 		user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
 		role TEXT CHECK (role IN('owner','viewer')) NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		file_access_id UUID DEFAULT gen_random_uuid()
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
 
 	_, err := db.Exec(query)

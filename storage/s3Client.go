@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
-	"time"
 
 	"github.com/0xk4n3ki/secure-file-sharing/config"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -16,8 +15,7 @@ type s3Service struct{}
 var S3Service = &s3Service{}
 
 func (s *s3Service) Upload(file multipart.File, s3key string) error {
-	c, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	c := context.Background()
 
 	_, err := config.S3Client.PutObject(c, &s3.PutObjectInput{
 		Bucket:               aws.String(config.BucketName),

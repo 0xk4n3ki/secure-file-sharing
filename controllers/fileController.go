@@ -12,15 +12,15 @@ func Upload() gin.HandlerFunc {
 		userId := ctx.GetString("user_id")
 		file, header, err := ctx.Request.FormFile("file")
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error":"File not provided"})
-			return 
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "File not provided"})
+			return
 		}
 		defer file.Close()
 
 		uploadedFile, err := services.FileService.Upload(userId, header.Filename, header.Size, file)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-			return 
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 
 		ctx.JSON(http.StatusOK, uploadedFile)
