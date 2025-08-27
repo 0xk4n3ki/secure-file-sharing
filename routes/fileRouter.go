@@ -15,5 +15,6 @@ func FileRouter(incomingRoutes *gin.Engine) {
 		fileGroup.GET("", controllers.List())
 		fileGroup.GET("/:id/download", controllers.Download())
 		fileGroup.DELETE("/:id", controllers.Delete())
+		fileGroup.DELETE("/:id/remove", controllers.Remove())
 	}
 }

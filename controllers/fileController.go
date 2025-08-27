@@ -34,6 +34,7 @@ func Upload() gin.HandlerFunc {
 func Share() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		fileId := ctx.Param("id")
+
 		ownerId, _ := ctx.Get("user_id")
 		var perm string
 		err := database.PG_Client.QueryRow(`
@@ -52,6 +53,7 @@ func Share() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user doesn't own this file"})
 			return
 		}
+
 
 		email := ctx.GetHeader("email")
 		if email == "" {
@@ -110,6 +112,73 @@ func Share() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, coll_entry)
+	}
+}
+
+func Remove() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		fileId := ctx.Param("id")
+
+		ownerId, _ := ctx.Get("user_id")
+		var perm string
+		err := database.PG_Client.QueryRow(`
+			SELECT role FROM file_access WHERE user_id=$1 AND file_id=$2`,
+			ownerId, fileId,
+		).Scan(&perm)
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user doesn't own this file"})
+			return
+		}
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check file_access"})
+			return
+		}
+		if perm != "owner" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user doesn't own this file"})
+			return
+		}
+
+
+
+		email := ctx.GetHeader("email")
+		if email == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing collaborator email"})
+			return
+		}
+		var collId string
+		err = database.PG_Client.QueryRow(`
+			SELECT user_id FROM users WHERE email=$1;`,
+			email,
+		).Scan(&collId)
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "the collaborator doesn't exist"})
+			return
+		}
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check the existence of collaborator"})
+			return
+		}
+		if collId == ownerId {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "owner can't remove himself"})
+			return
+		}
+
+		result, err := database.PG_Client.Exec(`
+			DELETE FROM file_access WHERE user_id=$1 AND file_id=$2`,
+			collId, fileId,
+		)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error":"failed to remove collaborator"})
+			return 
+		}
+
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			ctx.JSON(http.StatusBadGateway, gin.H{"error":"collaborator does not have access to this file"})
+			return 
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"message":"collaborator removed successfully"})
 	}
 }
 
