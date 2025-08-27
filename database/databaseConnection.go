@@ -105,7 +105,6 @@ func CreateFileTable(db *sql.DB) {
 	CREATE TABLE IF NOT EXISTS files (
 		id SERIAL PRIMARY KEY,
 		filename TEXT NOT NULL,
-		filepath TEXT NOT NULL,
 		owner_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
 		size BIGINT,
 		s3_key TEXT UNIQUE NOT NULL,

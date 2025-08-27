@@ -29,6 +29,7 @@ func main() {
 
 	config.InitGoogleConfig()
 	database.RunMigrations()
+	config.InitAWS()
 
 	router.GET("/healthz", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
