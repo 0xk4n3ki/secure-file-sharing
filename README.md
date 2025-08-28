@@ -67,3 +67,29 @@ A lightweight and secure backend service for file storage and collaboration, bui
 2. Set environment variables for PostgreSQL and AWS credentials.
 3. Run `go run main.go` to start the server.
 4. Use a tool like Postman to interact with the API endpoints.
+
+## Screenshots
+
+Login
+
+<video alt="login" src="/images/login.webm"></video>
+
+Upload
+
+<img alt="upload file" src="/images/upload.png">
+
+Share access
+
+<img alt="share" src="/images/share.png">
+
+List Files
+
+<img alt="list files" src="/images/listFiles.png">
+
+Download file
+
+<img alt="download file" src="/images/download.png">
+
+Delete File
+
+<img alt="delete file" src="/images/delete.png">
