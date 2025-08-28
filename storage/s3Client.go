@@ -28,3 +28,12 @@ func (s *s3Service) Upload(file multipart.File, s3key string) error {
 	}
 	return nil
 }
+
+func (s *s3Service) Download(s3key string) (*s3.GetObjectOutput, error) {
+	c := context.Background()
+
+	return config.S3Client.GetObject(c, &s3.GetObjectInput{
+		Bucket: aws.String(config.BucketName),
+		Key:    aws.String(s3key),
+	})
+}

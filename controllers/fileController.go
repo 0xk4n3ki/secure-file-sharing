@@ -2,12 +2,15 @@ package controllers
 
 import (
 	"database/sql"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/0xk4n3ki/secure-file-sharing/database"
 	"github.com/0xk4n3ki/secure-file-sharing/models"
 	"github.com/0xk4n3ki/secure-file-sharing/services"
+	"github.com/0xk4n3ki/secure-file-sharing/storage"
 	"github.com/gin-gonic/gin"
 )
 
@@ -181,8 +184,9 @@ func Remove() gin.HandlerFunc {
 
 type fileList struct {
 	FileName string `json:"file_name"`
-	Role string	`json:"role"`
+	Role     string `json:"role"`
 }
+
 func List() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		userId, _ := ctx.Get("user_id")
@@ -193,7 +197,7 @@ func List() gin.HandlerFunc {
 			JOIN files f ON fa.file_id = f.file_id
 			WHERE fa.user_id=$1`, userId)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
 		defer rows.Close()
 
@@ -202,8 +206,8 @@ func List() gin.HandlerFunc {
 			var tmp fileList
 			err := rows.Scan(&tmp.FileName, &tmp.Role)
 			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-				return 
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
 			}
 
 			data = append(data, tmp)
@@ -211,16 +215,57 @@ func List() gin.HandlerFunc {
 
 		if err := rows.Err(); err != nil {
 			ctx.JSON(http.StatusInternalServerError, err.Error())
-			return 
+			return
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{"files":data})
+		ctx.JSON(http.StatusOK, gin.H{"files": data})
 	}
 }
 
 func Download() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		userId, _ := ctx.Get("user_id")
+		fileId := ctx.Param("file_id")
 
+		var exist bool
+		err := database.PG_Client.QueryRow(`
+			SELECT EXISTS(SELECT 1 FROM file_access WHERE user_id=$1 AND file_id=$2)`,
+			userId, fileId,
+		).Scan(&exist)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if !exist {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "user doesn't have permission"})
+			return
+		}
+
+		var s3Key, filename string
+		err = database.PG_Client.QueryRow(`
+			SELECT s3_key, filename FROM files WHERE file_id=$1`,
+			fileId).Scan(&s3Key, &filename)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		output, err := storage.S3Service.Download(s3Key)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
+			return 
+		}
+		defer output.Body.Close()
+
+		ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+		ctx.Header("Content-Type", "application/octet-stream")
+		ctx.Header("Content-Length", fmt.Sprintf("%d", *output.ContentLength))
+
+		_, err = io.Copy(ctx.Writer, output.Body)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
+			return 
+		}
 	}
 }
 
