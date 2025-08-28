@@ -259,7 +259,9 @@ func Download() gin.HandlerFunc {
 
 		ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 		ctx.Header("Content-Type", "application/octet-stream")
-		ctx.Header("Content-Length", fmt.Sprintf("%d", *output.ContentLength))
+		if output.ContentLength != nil && *output.ContentLength > 0 {
+			ctx.Header("Content-Length", fmt.Sprintf("%d", *output.ContentLength))
+		}
 
 		_, err = io.Copy(ctx.Writer, output.Body)
 		if err != nil {
@@ -278,6 +280,10 @@ func Delete() gin.HandlerFunc {
 		err := database.PG_Client.QueryRow(`
 			SELECT s3_key FROM files WHERE owner_id=$1 AND file_id=$2`,
 			userId, fileId).Scan(&s3key)
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error":"file not found or you are not the owner"})
+			return 
+		}
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

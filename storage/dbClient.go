@@ -30,6 +30,8 @@ func (d *dbService) InsertFile(f *models.File, userId string) error {
 		return fmt.Errorf("faile to insert row in file_access: %v", err)
 	}
 
+	f.File_id = file_id
+
 	return nil
 }
 
