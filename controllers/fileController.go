@@ -42,7 +42,7 @@ func Share() gin.HandlerFunc {
 			ownerId, fileId,
 		).Scan(&perm)
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user doesn't own this file"})
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "only owner can share this file"})
 			return
 		}
 		if err != nil {
@@ -50,10 +50,9 @@ func Share() gin.HandlerFunc {
 			return
 		}
 		if perm != "owner" {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user doesn't own this file"})
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "only owner can share this file"})
 			return
 		}
-
 
 		email := ctx.GetHeader("email")
 		if email == "" {
@@ -138,8 +137,6 @@ func Remove() gin.HandlerFunc {
 			return
 		}
 
-
-
 		email := ctx.GetHeader("email")
 		if email == "" {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing collaborator email"})
@@ -168,23 +165,56 @@ func Remove() gin.HandlerFunc {
 			collId, fileId,
 		)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":"failed to remove collaborator"})
-			return 
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove collaborator"})
+			return
 		}
 
 		rows, _ := result.RowsAffected()
 		if rows == 0 {
-			ctx.JSON(http.StatusBadGateway, gin.H{"error":"collaborator does not have access to this file"})
-			return 
+			ctx.JSON(http.StatusBadGateway, gin.H{"error": "collaborator does not have access to this file"})
+			return
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{"message":"collaborator removed successfully"})
+		ctx.JSON(http.StatusOK, gin.H{"message": "collaborator removed successfully"})
 	}
 }
 
+type fileList struct {
+	FileName string `json:"file_name"`
+	Role string	`json:"role"`
+}
 func List() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		userId, _ := ctx.Get("user_id")
 
+		rows, err := database.PG_Client.Query(`
+			SELECT f.filename, fa.role
+			FROM file_access fa
+			JOIN files f ON fa.file_id = f.file_id
+			WHERE fa.user_id=$1`, userId)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
+		}
+		defer rows.Close()
+
+		data := []fileList{}
+		for rows.Next() {
+			var tmp fileList
+			err := rows.Scan(&tmp.FileName, &tmp.Role)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
+				return 
+			}
+
+			data = append(data, tmp)
+		}
+
+		if err := rows.Err(); err != nil {
+			ctx.JSON(http.StatusInternalServerError, err.Error())
+			return 
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"files":data})
 	}
 }
 
