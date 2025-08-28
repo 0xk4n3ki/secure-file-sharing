@@ -11,10 +11,10 @@ func FileRouter(incomingRoutes *gin.Engine) {
 	fileGroup.Use(middleware.Authenticate())
 	{
 		fileGroup.POST("/upload", controllers.Upload())
-		fileGroup.POST("/:id/share", controllers.Share())
+		fileGroup.POST("/:file_id/share", controllers.Share())
 		fileGroup.GET("", controllers.List())
-		fileGroup.GET("/:id/download", controllers.Download())
-		fileGroup.DELETE("/:id", controllers.Delete())
-		fileGroup.DELETE("/:id/remove", controllers.Remove())
+		fileGroup.GET("/:file_id/download", controllers.Download())
+		fileGroup.DELETE("/:file_id", controllers.Delete())
+		fileGroup.DELETE("/:file_id/remove", controllers.Remove())
 	}
 }

@@ -36,7 +36,7 @@ func Upload() gin.HandlerFunc {
 
 func Share() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		fileId := ctx.Param("id")
+		fileId := ctx.Param("file_id")
 
 		ownerId, _ := ctx.Get("user_id")
 		var perm string
@@ -119,7 +119,7 @@ func Share() gin.HandlerFunc {
 
 func Remove() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		fileId := ctx.Param("id")
+		fileId := ctx.Param("file_id")
 
 		ownerId, _ := ctx.Get("user_id")
 		var perm string
@@ -252,8 +252,8 @@ func Download() gin.HandlerFunc {
 
 		output, err := storage.S3Service.Download(s3Key)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-			return 
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 		defer output.Body.Close()
 
@@ -263,14 +263,51 @@ func Download() gin.HandlerFunc {
 
 		_, err = io.Copy(ctx.Writer, output.Body)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-			return 
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 	}
 }
 
 func Delete() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		fileId := ctx.Param("file_id")
+		userId, _ := ctx.Get("user_id")
 
+		var s3key string
+		err := database.PG_Client.QueryRow(`
+			SELECT s3_key FROM files WHERE owner_id=$1 AND file_id=$2`,
+			userId, fileId).Scan(&s3key)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if s3key == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user doesn't have access to such file"})
+			return
+		}
+
+		_, err = database.PG_Client.Exec(`
+			DELETE FROM files WHERE owner_id=$1 AND file_id=$2`,
+			userId, fileId)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		_, err = database.PG_Client.Exec(`
+			DELETE FROM file_access WHERE file_id=$1`, fileId)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = storage.S3Service.Delete(s3key)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"message": "file deleted successfully"})
 	}
 }

@@ -37,3 +37,14 @@ func (s *s3Service) Download(s3key string) (*s3.GetObjectOutput, error) {
 		Key:    aws.String(s3key),
 	})
 }
+
+func (s *s3Service) Delete(s3key string) (error) {
+	c := context.Background()
+
+	_, err := config.S3Client.DeleteObject(c, &s3.DeleteObjectInput{
+		Bucket: aws.String(config.BucketName),
+		Key: aws.String(s3key),
+	})
+
+	return err
+}
