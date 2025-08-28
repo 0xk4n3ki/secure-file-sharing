@@ -72,7 +72,7 @@ A lightweight and secure backend service for file storage and collaboration, bui
 
 Login
 
-<video alt="login" src="/images/login.webm"></video>
+![Login Demo](images/login.gif)
 
 Upload
 
